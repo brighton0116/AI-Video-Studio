@@ -1,14 +1,36 @@
 .app {
-  min-height: 100vh;
   display: flex;
-  align-items: center;
-  justify-content: center;
+  height: 100vh;
+  width: 100%;
+  overflow: hidden;
+  background: #f8fafc;
 }
 
-.app h1 {
-  margin: 0;
-  font-size: 2.5rem;
-  font-weight: 600;
-  letter-spacing: -0.02em;
-  color: #1a1a1a;
+.app__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: #f8fafc;
+}
+
+@media (max-width: 900px) {
+  .sidebar {
+    width: 220px;
+  }
+
+  .chat-header,
+  .chat-input {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .message-list__inner {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .message-list__welcome-title {
+    font-size: 1.4rem;
+  }
 }
