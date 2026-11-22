@@ -13,15 +13,6 @@ function createId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
 }
 
-function createConversation(): Conversation {
-  return {
-    id: createId(),
-    title: '新对话',
-    messages: [],
-    updatedAt: Date.now(),
-  }
-}
-
 function deriveTitle(content: string) {
   const trimmed = content.trim().replace(/\s+/g, ' ')
   if (trimmed.length <= 20) return trimmed
@@ -29,19 +20,17 @@ function deriveTitle(content: string) {
 }
 
 function App() {
-  const [session, setSession] = useState(() => {
-    const first = createConversation()
-    return {
-      conversations: [first] as Conversation[],
-      activeId: first.id,
-    }
-  })
+  const [messages, setMessages] = useState<Message[]>([])
+  const [chatTitle, setChatTitle] = useState('新对话')
+  const [activeId, setActiveId] = useState(() => createId())
+  const [conversations, setConversations] = useState<Conversation[]>([])
   const [isReplying, setIsReplying] = useState(false)
-  const replyTimerRef = useRef<number | null>(null)
 
-  const { conversations, activeId } = session
-  const activeConversation =
-    conversations.find((item) => item.id === activeId) ?? conversations[0]!
+  const replyTimerRef = useRef<number | null>(null)
+  const isMountedRef = useRef(true)
+  const activeIdRef = useRef(activeId)
+
+  activeIdRef.current = activeId
 
   const clearReplyTimer = useCallback(() => {
     if (replyTimerRef.current !== null) {
@@ -51,60 +40,84 @@ function App() {
   }, [])
 
   useEffect(() => {
-    return () => clearReplyTimer()
+    isMountedRef.current = true
+    return () => {
+      isMountedRef.current = false
+      clearReplyTimer()
+    }
   }, [clearReplyTimer])
 
+  const upsertConversation = useCallback(
+    (id: string, title: string, nextMessages: Message[]) => {
+      setConversations((prev) => {
+        const nextItem: Conversation = {
+          id,
+          title,
+          messages: nextMessages,
+          updatedAt: Date.now(),
+        }
+        const exists = prev.some((item) => item.id === id)
+        if (!exists) {
+          return [nextItem, ...prev]
+        }
+        return prev.map((item) => (item.id === id ? nextItem : item))
+      })
+    },
+    [],
+  )
+
   const handleNewChat = () => {
-    if (activeConversation.messages.length === 0 && !isReplying) {
+    if (messages.length === 0 && !isReplying) {
       return
     }
 
     clearReplyTimer()
     setIsReplying(false)
-
-    const next = createConversation()
-    setSession((prev) => ({
-      conversations: [next, ...prev.conversations],
-      activeId: next.id,
-    }))
+    setMessages([])
+    setChatTitle('新对话')
+    setActiveId(createId())
   }
 
   const handleSelectChat = (id: string) => {
     if (id === activeId) return
+
+    const target = conversations.find((item) => item.id === id)
+    if (!target) return
+
     clearReplyTimer()
     setIsReplying(false)
-    setSession((prev) => ({ ...prev, activeId: id }))
+    setActiveId(target.id)
+    setChatTitle(target.title)
+    setMessages([...target.messages])
   }
 
   const handleSend = (content: string) => {
-    if (isReplying || !activeConversation) return
+    const trimmed = content.trim()
+    if (!trimmed || isReplying) return
 
     const userMessage: Message = {
       id: createId(),
       role: 'user',
-      content,
+      content: trimmed,
       createdAt: Date.now(),
     }
 
-    const conversationId = activeConversation.id
-    const shouldRename = activeConversation.messages.length === 0
+    const conversationId = activeId
+    const nextTitle = messages.length === 0 ? deriveTitle(trimmed) : chatTitle
+    const nextMessages = [...messages, userMessage]
 
-    setSession((prev) => ({
-      ...prev,
-      conversations: prev.conversations.map((item) => {
-        if (item.id !== conversationId) return item
-        return {
-          ...item,
-          title: shouldRename ? deriveTitle(content) : item.title,
-          messages: [...item.messages, userMessage],
-          updatedAt: Date.now(),
-        }
-      }),
-    }))
-
+    setMessages(nextMessages)
+    setChatTitle(nextTitle)
+    upsertConversation(conversationId, nextTitle, nextMessages)
     setIsReplying(true)
 
     replyTimerRef.current = window.setTimeout(() => {
+      replyTimerRef.current = null
+
+      if (!isMountedRef.current) return
+      // 新建/切换对话时已清理定时器；此处再防护一次，避免过期更新
+      if (activeIdRef.current !== conversationId) return
+
       const assistantMessage: Message = {
         id: createId(),
         role: 'assistant',
@@ -112,36 +125,42 @@ function App() {
         createdAt: Date.now(),
       }
 
-      setSession((prev) => ({
-        ...prev,
-        conversations: prev.conversations.map((item) => {
-          if (item.id !== conversationId) return item
-          return {
-            ...item,
-            messages: [...item.messages, assistantMessage],
-            updatedAt: Date.now(),
-          }
-        }),
-      }))
+      setMessages((prev) => {
+        const withAssistant = [...prev, assistantMessage]
+        return withAssistant
+      })
+      // 基于发送时已确认的 nextMessages 追加回复，避免在 updater 里产生副作用
+      upsertConversation(conversationId, nextTitle, [
+        ...nextMessages,
+        assistantMessage,
+      ])
       setIsReplying(false)
-      replyTimerRef.current = null
     }, REPLY_DELAY_MS)
   }
+
+  const sidebarConversations =
+    conversations.length > 0
+      ? conversations
+      : [
+          {
+            id: activeId,
+            title: chatTitle,
+            messages,
+            updatedAt: Date.now(),
+          },
+        ]
 
   return (
     <div className="app">
       <Sidebar
-        conversations={conversations}
-        activeId={activeConversation.id}
+        conversations={sidebarConversations}
+        activeId={activeId}
         onNewChat={handleNewChat}
         onSelectChat={handleSelectChat}
       />
       <main className="app__main">
-        <ChatHeader title={activeConversation.title} />
-        <MessageList
-          messages={activeConversation.messages}
-          isReplying={isReplying}
-        />
+        <ChatHeader title={chatTitle} />
+        <MessageList messages={messages} isReplying={isReplying} />
         <ChatInput disabled={isReplying} onSend={handleSend} />
       </main>
     </div>

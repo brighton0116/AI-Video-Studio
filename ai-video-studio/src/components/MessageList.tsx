@@ -9,15 +9,20 @@ interface MessageListProps {
 }
 
 function MessageList({ messages, isReplying }: MessageListProps) {
+  const containerRef = useRef<HTMLDivElement>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const isEmpty = messages.length === 0
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    const container = containerRef.current
+    if (!container) return
+
+    // 只滚动消息区域，避免带动整个页面
+    container.scrollTop = container.scrollHeight
   }, [messages, isReplying])
 
   return (
-    <div className="message-list">
+    <div className="message-list" ref={containerRef}>
       <div className="message-list__inner">
         {isEmpty ? (
           <div className="message-list__welcome">
@@ -45,7 +50,7 @@ function MessageList({ messages, isReplying }: MessageListProps) {
           </div>
         )}
 
-        <div ref={bottomRef} />
+        <div ref={bottomRef} aria-hidden="true" />
       </div>
     </div>
   )

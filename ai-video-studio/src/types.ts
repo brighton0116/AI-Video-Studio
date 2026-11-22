@@ -1,8 +1,6 @@
-export type MessageRole = 'user' | 'assistant'
-
 export interface Message {
   id: string
-  role: MessageRole
+  role: 'user' | 'assistant'
   content: string
   createdAt: number
 }
