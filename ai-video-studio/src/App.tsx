@@ -29,14 +29,17 @@ function deriveTitle(content: string) {
 }
 
 function App() {
-  const [conversations, setConversations] = useState<Conversation[]>(() => {
+  const [session, setSession] = useState(() => {
     const first = createConversation()
-    return [first]
+    return {
+      conversations: [first] as Conversation[],
+      activeId: first.id,
+    }
   })
-  const [activeId, setActiveId] = useState(() => conversations[0].id)
   const [isReplying, setIsReplying] = useState(false)
   const replyTimerRef = useRef<number | null>(null)
 
+  const { conversations, activeId } = session
   const activeConversation =
     conversations.find((item) => item.id === activeId) ?? conversations[0]!
 
@@ -58,16 +61,19 @@ function App() {
 
     clearReplyTimer()
     setIsReplying(false)
+
     const next = createConversation()
-    setConversations((prev) => [next, ...prev])
-    setActiveId(next.id)
+    setSession((prev) => ({
+      conversations: [next, ...prev.conversations],
+      activeId: next.id,
+    }))
   }
 
   const handleSelectChat = (id: string) => {
     if (id === activeId) return
     clearReplyTimer()
     setIsReplying(false)
-    setActiveId(id)
+    setSession((prev) => ({ ...prev, activeId: id }))
   }
 
   const handleSend = (content: string) => {
@@ -83,8 +89,9 @@ function App() {
     const conversationId = activeConversation.id
     const shouldRename = activeConversation.messages.length === 0
 
-    setConversations((prev) =>
-      prev.map((item) => {
+    setSession((prev) => ({
+      ...prev,
+      conversations: prev.conversations.map((item) => {
         if (item.id !== conversationId) return item
         return {
           ...item,
@@ -93,7 +100,7 @@ function App() {
           updatedAt: Date.now(),
         }
       }),
-    )
+    }))
 
     setIsReplying(true)
 
@@ -105,8 +112,9 @@ function App() {
         createdAt: Date.now(),
       }
 
-      setConversations((prev) =>
-        prev.map((item) => {
+      setSession((prev) => ({
+        ...prev,
+        conversations: prev.conversations.map((item) => {
           if (item.id !== conversationId) return item
           return {
             ...item,
@@ -114,7 +122,7 @@ function App() {
             updatedAt: Date.now(),
           }
         }),
-      )
+      }))
       setIsReplying(false)
       replyTimerRef.current = null
     }, REPLY_DELAY_MS)
