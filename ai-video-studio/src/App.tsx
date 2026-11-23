@@ -3,6 +3,7 @@ import ChatHeader from './components/ChatHeader'
 import ChatInput from './components/ChatInput'
 import MessageList from './components/MessageList'
 import Sidebar from './components/Sidebar'
+import Welcome from './components/Welcome'
 import type { Conversation, Message } from './types'
 import './App.css'
 
@@ -159,8 +160,12 @@ function App() {
         onSelectChat={handleSelectChat}
       />
       <main className="app__main">
-        <ChatHeader title={chatTitle} />
-        <MessageList messages={messages} isReplying={isReplying} />
+        <ChatHeader title={chatTitle} messageCount={messages.length} />
+        <MessageList
+          messages={messages}
+          isReplying={isReplying}
+          emptyContent={<Welcome />}
+        />
         <ChatInput disabled={isReplying} onSend={handleSend} />
       </main>
     </div>

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
 import type { Message } from '../types'
 import MessageItem from './MessageItem'
 import './MessageList.css'
@@ -6,9 +6,10 @@ import './MessageList.css'
 interface MessageListProps {
   messages: Message[]
   isReplying: boolean
+  emptyContent?: ReactNode
 }
 
-function MessageList({ messages, isReplying }: MessageListProps) {
+function MessageList({ messages, isReplying, emptyContent }: MessageListProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const isEmpty = messages.length === 0
@@ -25,12 +26,7 @@ function MessageList({ messages, isReplying }: MessageListProps) {
     <div className="message-list" ref={containerRef}>
       <div className="message-list__inner">
         {isEmpty ? (
-          <div className="message-list__welcome">
-            <h2 className="message-list__welcome-title">你好，我是 AI 创作助手</h2>
-            <p className="message-list__welcome-text">
-              告诉我你的创意，我可以帮你生成视频脚本和分镜
-            </p>
-          </div>
+          emptyContent ?? null
         ) : (
           messages.map((message) => (
             <MessageItem key={message.id} message={message} />
