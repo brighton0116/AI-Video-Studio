@@ -200,7 +200,12 @@ function App() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ message: trimmed }),
+        body: JSON.stringify({
+          messages: baseMessages.map(({ role, content }) => ({
+            role,
+            content,
+          })),
+        }),
         signal: abortController.signal,
       });
 
